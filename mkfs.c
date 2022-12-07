@@ -94,10 +94,10 @@ int main(int argc, char *argv[]) {
 	exit(1);
     }
 
-    printf("total blocks        %d\n", total_blocks);
+    f("total blocks        %d\n", total_blocks);
     printf("  inodes            %d [size of each: %lu]\n", num_inodes, sizeof(inode_t));
     printf("  data blocks       %d\n", num_data);
-    printf("layout details\n");
+    printf("layout details\n");print
     printf("  inode bitmap address/len %d [%d]\n", s.inode_bitmap_addr, s.inode_bitmap_len);
     printf("  data bitmap address/len  %d [%d]\n", s.data_bitmap_addr, s.data_bitmap_len);
 

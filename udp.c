@@ -42,7 +42,7 @@ int UDP_FillSockAddr(struct sockaddr_in *addr, char *hostname, int port) {
 	perror("gethostbyname");
 	return -1;
     }
-    in_addr = ((struct in_addr *) host_entry)->h_addr;
+    in_addr = (struct in_addr *) host_entry->h_addr;
     addr->sin_addr = *in_addr;
 
     return 0;
