@@ -51,16 +51,15 @@ int main(int argc, char *argv[]) {
 
     while (1) {
 	struct sockaddr_in addr;
-	char message[BUFFER_SIZE]; // change this to be a message struct 
-    // change to message_t
-	//printf("server:: waiting...\n");
-    // change this line to pass in (char * ) &m
-	int rc = UDP_Read(sd, &addr, message, BUFFER_SIZE);
-	printf("server:: read message [size:%d contents:(%s)]\n", rc, message);
+	message_t m;
+	
+	printf("server:: waiting...\n");
+	m.rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
+	printf("server:: read message [size:%d contents:(%d)]\n", rc, m.mtype);
 	if (rc > 0) {
-            char reply[BUFFER_SIZE];
-            sprintf(reply, "goodbye world");
-            rc = UDP_Write(sd, &addr, reply, BUFFER_SIZE);
+            message_t r; 
+            r.mtype = 1;
+            r.rc = UDP_Write(sd, &addr, (char *) &r, BUFFER_SIZE);
 	    printf("server:: reply\n");
 	} 
     }}

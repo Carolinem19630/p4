@@ -1,10 +1,28 @@
 #include <stdio.h>
 #include "mfs.h"
 #include "message.h"
+#include "udp.h"
+
+#define BUFFER_SIZE (1000)
 
 int MFS_Init(char *hostname, int port) {
     printf("MFS Init2 %s %d\n", hostname, port);
-    // do some net setup
+    struct sockaddr_in addrSnd, addrRcv;
+    int sd = UDP_Open(port);
+    int rc = UDP_FillSockAddr(&addrSnd, hostname, port);
+
+    message_t m;
+
+    m.mtype = MFS_INIT;
+    rc = UDP_Write(sd, &addrSnd, (char *) &m, BUFFER_SIZE);
+    if (rc < 0) {
+	    printf("client:: failed to send\n");
+	    exit(1);
+    }
+
+    printf("client:: wait for reply...\n");
+    rc = UDP_Read(sd, &addrRcv, (char *) &m, BUFFER_SIZE);
+    printf("client:: got reply [size:%d contents:(%d)\n", rc, m.mtype);
     return 0;
 }
 
