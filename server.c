@@ -4,7 +4,7 @@
 #include "ufs.h"
 #include <sys/stat.h>
 #include  <signal.h>
-#include <message.h>
+#include "message.h"
 
 #define BUFFER_SIZE (1000)
 
