@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
         sd = UDP_Open(atoi(argv[1])); // pass in port number as arg
         assert(sd > -1);
         struct stat sbuf;
+        message_t m;
         int rc = fstat(fd, &sbuf);
         assert(rc > -1);
 
@@ -51,15 +52,14 @@ int main(int argc, char *argv[]) {
 
     while (1) {
 	struct sockaddr_in addr;
-	message_t m;
 	
 	printf("server:: waiting...\n");
-	m.rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
+	rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
 	printf("server:: read message [size:%d contents:(%d)]\n", rc, m.mtype);
 	if (rc > 0) {
             message_t r; 
             r.mtype = 1;
-            r.rc = UDP_Write(sd, &addr, (char *) &r, BUFFER_SIZE);
+            rc = UDP_Write(sd, &addr, (char *) &r, BUFFER_SIZE);
 	    printf("server:: reply\n");
 	} 
     }}
