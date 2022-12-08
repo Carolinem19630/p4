@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     f("total blocks        %d\n", total_blocks);
     printf("  inodes            %d [size of each: %lu]\n", num_inodes, sizeof(inode_t));
     printf("  data blocks       %d\n", num_data);
-    printf("layout details\n");print
+    printf("layout details\n");
     printf("  inode bitmap address/len %d [%d]\n", s.inode_bitmap_addr, s.inode_bitmap_len);
     printf("  data bitmap address/len  %d [%d]\n", s.data_bitmap_addr, s.data_bitmap_len);
 
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 
     bitmap_t b;
     for (i = 0; i < 1024; i++)
-	b.bits[i] = 0;
+	    b.bits[i] = 0;
     b.bits[0] = 0x1 << 31; // first entry is allocated
     
     rc = pwrite(fd, &b, UFS_BLOCK_SIZE, s.inode_bitmap_addr * UFS_BLOCK_SIZE);

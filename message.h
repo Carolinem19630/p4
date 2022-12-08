@@ -14,6 +14,9 @@
 typedef struct {
     int mtype; // message type from above
     int rc;    // return code
+    int pinum;
+    int inum;
+    char * name;
     // put more here ...
 } message_t;
 

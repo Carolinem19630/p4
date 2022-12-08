@@ -9,10 +9,60 @@
 #define BUFFER_SIZE (10000)
 
 int sd;
+super_t * s;
+inode_t * inode_table;
+inode_t * root_inode;
+dir_ent_t *root_dir;
+
 
 void intHandler(int dummy) {
     UDP_Close(sd);
     exit(130);
+}
+
+unsigned int get_bit(unsigned int *bitmap, int position) {
+   int index = position / 32;
+   int offset = 31 - (position % 32);
+   return (bitmap[index] >> offset) & 0x1;
+}
+
+void set_bit(unsigned int *bitmap, int position) {
+   int index = position / 32;
+   int offset = 31 - (position % 32);
+   bitmap[index] |= 0x1 << offset;
+}
+
+void lookup(message_t * m){
+    // failure cases: pinum isn't valid or name doesn't exist in parent directory
+
+    // check pinum is valid - gotta check inode bitmap 
+    if (!get_bit((unsigned int *) ((void *) s + s->inode_bitmap_addr * UFS_BLOCK_SIZE),  m->pinum)){
+        m->rc = -1;
+        return;
+    }
+    inode_t * parentInode = inode_table + m->pinum * sizeof(inode_t);
+    int i = 0;
+    while(parentInode->direct[i] != -1){
+        if (!get_bit((unsigned int *) ((void *) s + s->data_bitmap_addr * UFS_BLOCK_SIZE), parentInode->direct[i] - s->data_region_addr)){
+            m->rc = -1;
+            return;
+        }
+        else {
+            // start of data block
+            dir_ent_t * curr_direct = (void *) s + parentInode->direct[i] * UFS_BLOCK_SIZE;
+            int j = 0;
+            while(curr_direct[j].inum != -1 && strcmp(curr_direct[j].name, m->name) != 0 && j < 128){
+                j++;
+            }
+            if (strcmp(curr_direct[j].name, m->name) == 0){
+                m->inum = curr_direct[j].inum;
+                return;
+            }
+        }
+        i++;
+    }
+    m->rc = -1;
+    return;
 }
 
 // server code
@@ -31,16 +81,17 @@ int main(int argc, char *argv[]) {
         void *image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         assert(image != MAP_FAILED);
 
-        super_t * s = (super_t *) image;
+        s = (super_t *) image;
+
         printf("inode bitmap address %d [len %d]\n", s->inode_bitmap_addr, s->inode_bitmap_len);
         printf("data bitmap address %d [len %d]\n", s->data_bitmap_addr, s->data_bitmap_len);
 
-        inode_t * inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
-        inode_t *root_inode = inode_table;
+        inode_table = image + (s->inode_region_addr * UFS_BLOCK_SIZE);
+        root_inode = inode_table;
         printf("\nroot type:%d root size:%d\n", root_inode->type, root_inode->size);
         printf("direct pointers[0]:%d [1]:%d\n", root_inode->direct[0], root_inode->direct[1]);
 
-        dir_ent_t *root_dir = image + (root_inode->direct[0] * UFS_BLOCK_SIZE);
+        root_dir = image + (root_inode->direct[0] * UFS_BLOCK_SIZE);
         printf("\nroot dir entries\n%d %s\n", root_dir[0].inum, root_dir[0].name);
         printf("%d %s\n", root_dir[1].inum, root_dir[1].name);
 
@@ -54,14 +105,24 @@ int main(int argc, char *argv[]) {
 	struct sockaddr_in addr;
 	
 	printf("server:: waiting...\n");
-	rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
-	printf("server:: read message [size:%d contents:(%d)]\n", rc, m.mtype);
-	if (rc > 0) {
+	m.rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
+	printf("server:: read message [size:%d contents:(%d)]\n", m.rc, m.mtype);
+    switch(m.mtype){
+        case 1: 
+            break;
+        case 2: 
+            lookup(&m);
+    }
+	//if (m.rc > 0) {
             message_t r; 
-            r.mtype = 1;
-            rc = UDP_Write(sd, &addr, (char *) &r, sizeof(message_t));
+            r.mtype = m.mtype;
+            r.inum = m.inum;
+            r.rc = m.rc;
+            r.pinum = m.pinum;
+            r.name = m.name;
+            m.rc = UDP_Write(sd, &addr, (char *) &r, sizeof(message_t));
 	    printf("server:: reply\n");
-	} 
+	//} 
     }}
     return 0; 
 }
