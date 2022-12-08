@@ -3,7 +3,7 @@
 #include "message.h"
 #include "udp.h"
 
-#define BUFFER_SIZE (1000)
+#define BUFFER_SIZE (10000)
 
 int MFS_Init(char *hostname, int port) {
     printf("MFS Init2 %s %d\n", hostname, port);
@@ -13,14 +13,14 @@ int MFS_Init(char *hostname, int port) {
     int rc = UDP_FillSockAddr(&addrSnd, hostname, port);
 
     m.mtype = MFS_INIT;
-    rc = UDP_Write(sd, &addrSnd, (char *) &m, BUFFER_SIZE);
+    rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
     if (rc < 0) {
 	    printf("client:: failed to send\n");
 	    exit(1);
     }
 
-    printf("client:: wait for reply...\n");
-    rc = UDP_Read(sd, &addrRcv, (char *) &m, BUFFER_SIZE);
+    printf(" NEW client:: wait for reply...\n");
+    rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
     printf("client:: got reply [size:%d contents:(%d)\n", rc, m.mtype);
     return rc;
 }

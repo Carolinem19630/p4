@@ -6,7 +6,7 @@
 #include  <signal.h>
 #include "message.h"
 
-#define BUFFER_SIZE (1000)
+#define BUFFER_SIZE (10000)
 
 int sd;
 
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 	if (rc > 0) {
             message_t r; 
             r.mtype = 1;
-            rc = UDP_Write(sd, &addr, (char *) &r, BUFFER_SIZE);
+            rc = UDP_Write(sd, &addr, (char *) &r, sizeof(message_t));
 	    printf("server:: reply\n");
 	} 
     }}
