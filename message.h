@@ -18,6 +18,7 @@ typedef struct {
     int inum;
     char * name;
     // put more here ...
+    MFS_Stat_t stat;
 } message_t;
 
 #endif // __message_h__
