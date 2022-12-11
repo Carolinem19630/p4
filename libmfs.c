@@ -90,8 +90,32 @@ int MFS_Stat(int inum, MFS_Stat_t *m) {
 /**
  * Writes a buffer of size nbytes (max: 4096 bytes) at the byte offset specified by offset.
  * Success: return 0; Failure: return -1
+ * Failure modes: invalid - inum, nbytes, offset; not a regular file. 
 */
 int MFS_Write(int inum, char *buffer, int offset, int nbytes) {
+   
+   message_t m;
+   struct sockaddr_in addrSnd, addrRcv;
+   if (nbytes > 4096){
+    return -1;
+   } 
+   m.mtype = MFS_WRITE;
+   m.inum = inum;
+   //TODO - Not sure if this is correct. Double check
+   m.buffer = offset + (sizeof(int)*nbytes);
+   m.rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
+    if (m.rc < 0) {
+	    printf("client:: failed to send\n");
+	    exit(1);
+    }
+
+    printf(" NEW client:: wait for reply...\n");
+    m.rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
+    printf("client:: got reply [size:%d contents:(%d)\n", m.rc, m.mtype);
+    if (m.rc == -1){
+        return -1;
+    }
+   
     return 0;
 }
 

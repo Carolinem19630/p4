@@ -19,6 +19,7 @@ typedef struct {
     char * name;
     // put more here ...
     MFS_Stat_t stat;
+    int buffer;
 } message_t;
 
 #endif // __message_h__
