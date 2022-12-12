@@ -5,6 +5,7 @@
 
 #define BUFFER_SIZE (10000)
 int sd; 
+struct sockaddr_in addrSnd, addrRcv;
 
 // create a socket and bind it to a port on the current machine
 // used to listen for incoming packets
@@ -73,7 +74,6 @@ int UDP_Close(int fd) {
 
 int MFS_Init(char *hostname, int port) {
     printf("MFS Init2 %s %d\n", hostname, port);
-    struct sockaddr_in addrSnd, addrRcv;
     sd = UDP_Open(20000);
     message_t m;
     int rc = UDP_FillSockAddr(&addrSnd, hostname, port);
@@ -205,20 +205,12 @@ int MFS_Unlink(int pinum, char *name) {
 */
 int MFS_Shutdown() {
     message_t m;
-    struct sockaddr_in addrSnd, addrRcv;
     m.mtype = MFS_SHUTDOWN;
 
     int rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
     if (rc < 0) {
-	    printf("client:: failed to send\n");
+	    printf("Shutdown client:: failed to send\n");
 	    exit(1);
-    }
-
-    printf(" NEW client:: wait for reply...\n");
-    rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
-    printf("client:: got reply [size:%d contents:(%d)\n", rc, m.mtype);
-    if (rc < 0){
-        return -1;
     }
     return 0;
 }

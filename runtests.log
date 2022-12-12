@@ -33,17 +33,57 @@ layout details
   data bitmap address/len  2 [1]
 start server
 0
-Starting server on port 6500
-/tmp/tmpYPZ7Jo/p/server 6500 ./test.img
-MFS Init2 localhost 6500
+Starting server on port 7480
+/tmp/tmpBKB6J1/p/server 7480 ./test.img
+inode bitmap address 1 [len 1]
+data bitmap address 2 [len 1]
+
+root type:0 root size:64
+direct pointers[0]:4 [1]:-1
+
+root dir entries
+0 .
+0 ..
+server:: waiting...
+server:: read message [size:0 contents:(1)]
+server:: reply
+server:: waiting...
+server:: read message [size:21905 contents:(8)]
+MFS Init2 localhost 7480
+ NEW client:: wait for reply...
+client:: got reply [size:40 contents:(1)
+
+
+test shutdown PASSED
+ (init server and client then call shutdown)
+
+('starting', 'creat')
+
+**********************************************************************
+
+Test creat
+creat a file and check with lookup
+
+**********************************************************************
+total blocks        36
+  inodes            32 [size of each: 128]
+  data blocks       32
+layout details
+  inode bitmap address/len 1 [1]
+  data bitmap address/len  2 [1]
+start server
+0
+Starting server on port 8423
+/tmp/tmpBKB6J1/p/server 8423 ./test.img
+MFS Init2 localhost 8423
  NEW client:: wait for reply...
 client:: got reply [size:40 contents:(1)
 client:: failed to send
 
 
-test shutdown FAILED
- (init server and client then call shutdown)
+test creat FAILED
+ (creat a file and check with lookup)
  Timelimit (10.0s) exceeded
 
-Skipped 25 tests.
+Skipped 24 tests.
 To keep testing after failing a test, use flag '-c' or '--continue'
