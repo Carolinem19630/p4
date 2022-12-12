@@ -3,4 +3,4 @@ libmfs.so: libmfs.o
 	gcc -shared -Wl,-soname,libmfs.so -o libmfs.so libmfs.o -lc	
 
 libmfs.o: libmfs.c
-	gcc -fPIC -g -c -Wall libmfs.c udp.c
+	gcc -fPIC -g -Wall -Werror client.c libmfs.c udp.c -o client

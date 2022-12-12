@@ -1,0 +1,49 @@
+('starting', 'build')
+
+**********************************************************************
+
+Test build
+build project using make
+
+**********************************************************************
+Trying to build project using make
+make
+gcc -Wall -Werror  -c server.c
+gcc -c -fPIC -g -Wall -Werror libmfs.c udp.c
+gcc -shared -Wl,-soname,libmfs.so -o libmfs.so libmfs.o -lc	
+gcc server.o -o server udp.c
+
+
+test build PASSED
+ (build project using make)
+
+('starting', 'shutdown')
+
+**********************************************************************
+
+Test shutdown
+init server and client then call shutdown
+
+**********************************************************************
+total blocks        36
+  inodes            32 [size of each: 128]
+  data blocks       32
+layout details
+  inode bitmap address/len 1 [1]
+  data bitmap address/len  2 [1]
+start server
+0
+Starting server on port 6500
+/tmp/tmpYPZ7Jo/p/server 6500 ./test.img
+MFS Init2 localhost 6500
+ NEW client:: wait for reply...
+client:: got reply [size:40 contents:(1)
+client:: failed to send
+
+
+test shutdown FAILED
+ (init server and client then call shutdown)
+ Timelimit (10.0s) exceeded
+
+Skipped 25 tests.
+To keep testing after failing a test, use flag '-c' or '--continue'

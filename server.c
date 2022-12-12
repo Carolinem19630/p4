@@ -13,6 +13,7 @@ super_t * s;
 inode_t * inode_table;
 inode_t * root_inode;
 dir_ent_t *root_dir;
+int image_size;
 
 
 void intHandler(int dummy) {
@@ -65,6 +66,11 @@ void lookup(message_t * m){
     return;
 }
 
+void shut_down(){
+    msync(s, image_size, MS_SYNC);
+    exit(0);
+}
+
 // server code
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
@@ -77,7 +83,7 @@ int main(int argc, char *argv[]) {
         int rc = fstat(fd, &sbuf);
         assert(rc > -1);
 
-        int image_size = (int) sbuf.st_size;
+        image_size = (int) sbuf.st_size;
         void *image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         assert(image != MAP_FAILED);
 
@@ -105,15 +111,19 @@ int main(int argc, char *argv[]) {
 	struct sockaddr_in addr;
 	
 	printf("server:: waiting...\n");
-	m.rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
+	int rc = UDP_Read(sd, &addr, (char *) &m, sizeof(message_t));
 	printf("server:: read message [size:%d contents:(%d)]\n", m.rc, m.mtype);
     switch(m.mtype){
         case 1: 
             break;
         case 2: 
             lookup(&m);
+            break;
+        case 8: 
+            shut_down();
+            break;
     }
-	//if (m.rc > 0) {
+	if (rc > 0) {
             message_t r; 
             r.mtype = m.mtype;
             r.inum = m.inum;
@@ -122,7 +132,7 @@ int main(int argc, char *argv[]) {
             r.name = m.name;
             m.rc = UDP_Write(sd, &addr, (char *) &r, sizeof(message_t));
 	    printf("server:: reply\n");
-	//} 
+	} 
     }}
     return 0; 
 }
