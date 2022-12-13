@@ -9,6 +9,7 @@
 #define BUFFER_SIZE (10000)
 
 int sd;
+void * image;
 super_t * s;
 inode_t * inode_table;
 inode_t * root_inode;
@@ -37,20 +38,20 @@ void lookup(message_t * m){
     // failure cases: pinum isn't valid or name doesn't exist in parent directory
 
     // check pinum is valid - gotta check inode bitmap 
-    if (!get_bit((unsigned int *) ((void *) s + s->inode_bitmap_addr * UFS_BLOCK_SIZE),  m->pinum)){
+    if (!get_bit((unsigned int *) (image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE)),  m->pinum)){
         m->rc = -1;
         return;
     }
-    inode_t * parentInode = inode_table + m->pinum * sizeof(inode_t);
+    inode_t * parentInode = inode_table + (m->pinum * sizeof(inode_t));
     int i = 0;
     while(parentInode->direct[i] != -1){
-        if (!get_bit((unsigned int *) ((void *) s + s->data_bitmap_addr * UFS_BLOCK_SIZE), parentInode->direct[i] - s->data_region_addr)){
+        if (!get_bit((unsigned int *) (image + (s->data_bitmap_addr * UFS_BLOCK_SIZE)), parentInode->direct[i] - s->data_region_addr)){
             m->rc = -1;
             return;
         }
         else {
             // start of data block
-            dir_ent_t * curr_direct = (void *) s + parentInode->direct[i] * UFS_BLOCK_SIZE;
+            dir_ent_t * curr_direct = image + (parentInode->direct[i] * UFS_BLOCK_SIZE);
             int j = 0;
             while(curr_direct[j].inum != -1 && strcmp(curr_direct[j].name, m->name) != 0 && j < 128){
                 j++;
@@ -64,6 +65,124 @@ void lookup(message_t * m){
     }
     m->rc = -1;
     return;
+}
+
+/*
+* MFS_Creat() makes a file (type == MFS_REGULAR_FILE) or directory (type == MFS_DIRECTORY) 
+* in the parent directory specified by pinum of name name. Returns 0 on success, -1 on failure. 
+* Failure modes: pinum does not exist, or name is too long. If name already exists, return success.
+*
+* To create a file, the file
+system must not only allocate an inode, but also allocate space within
+the directory containing the new file. The total amount of I/O traffic to
+do so is quite high: one read to the inode bitmap (to find a free inode),
+one write to the inode bitmap (to mark it allocated), one write to the new
+inode itself (to initialize it), one to the data of the directory (to link the
+high-level name of the file to its inode number), and one read and write
+to the directory inode to update it. If the directory needs to grow to accommodate the new entry, 
+additional I/Os (i.e., to the data bitmap, and
+the new directory block) will be needed too. All that just to create a file!
+*/
+void create(message_t * m){
+    // check pinum is valid - gotta check inode bitmap 
+    printf("0");
+    if (!get_bit((unsigned int *) (image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE)),  m->pinum)){
+        m->rc = -1;
+        return;
+    }
+    printf("1");
+    printf("2");
+    // go through inode bitmap and find free inum + set bit
+    for (int i = 0; i < (s->inode_bitmap_len * UFS_BLOCK_SIZE * 8); i++){
+        if (get_bit((unsigned int *) (image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE)), i) == 0){
+            m->inum = i;
+            printf("\ninode bitmap\n%d\n", i);
+            set_bit((unsigned int *)(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE)), i);
+            msync(image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE), s->inode_bitmap_len * UFS_BLOCK_SIZE, MS_SYNC);
+            break;
+        }
+    }
+    // create inode in table at the inum index
+    inode_t * nInode = malloc(sizeof(inode_t)); 
+    // set file type in inode
+    nInode->type = m->type;
+    // set size to 0
+    if (m->type == UFS_DIRECTORY){
+        nInode->size = UFS_BLOCK_SIZE;
+    }
+    else {
+        nInode->size = 0;
+    }
+    // go through data bitmap and find free inum + set bit
+    for (int i = 0; i < (s->data_bitmap_len * UFS_BLOCK_SIZE * 8); i++){
+        if (get_bit(image +  (s->data_bitmap_addr * UFS_BLOCK_SIZE), i) == 0){
+            nInode->direct[0] = s->data_region_addr + i; // set direct pointer to be the block
+            // set first pointer to be -1
+            nInode->direct[1] = -1;
+            printf("\ninode bitmap 2\n%d\n", i);
+            set_bit(image + (s->data_bitmap_addr), i);
+            msync(image + (s->data_bitmap_addr * UFS_BLOCK_SIZE), s->data_bitmap_len * UFS_BLOCK_SIZE, MS_SYNC);
+            break;
+        }
+    }
+    memcpy(image + (s->inode_region_addr * UFS_BLOCK_SIZE) + (sizeof(inode_t) * m->inum), nInode, sizeof(inode_t));
+    msync(image + (s->inode_region_addr * UFS_BLOCK_SIZE) + (sizeof(inode_t) * m->inum), sizeof(inode_t), MS_SYNC);
+    // find parent directory data block 
+    inode_t * parentInode = image + (s->inode_region_addr * UFS_BLOCK_SIZE) + (m->pinum * sizeof(inode_t));
+    printf("\nparent Inode 2\n%p %d\n", parentInode, m->pinum);
+    int i = 0; 
+    int found = 0;
+    while (parentInode->direct[i] != -1 && found == 0){
+        dir_ent_t * directory = image + (parentInode->direct[i] *UFS_BLOCK_SIZE); 
+        int j = 0; 
+        while (j < UFS_BLOCK_SIZE/sizeof(dir_ent_t) && found == 0){
+            if (directory[j].inum == -1){
+                directory[j].inum = m->inum;
+                strcpy(directory[j].name, m->name);
+                found = 1;
+                msync(image + (parentInode->direct[i] * UFS_BLOCK_SIZE), UFS_BLOCK_SIZE, MS_SYNC);
+            }
+            j++;
+        }
+        i++;
+    }
+    // add entry in parent directory data block - check that still inside data block - otherwise have to create a new 
+    if (found == 0){
+        for (int k = 0; k < (s->data_bitmap_len * UFS_BLOCK_SIZE * 8); k++){
+            if (get_bit((void *)s +  s->data_bitmap_addr, k) == 0){
+                parentInode->direct[i] = s->data_region_addr + k; // set direct pointer to be the block
+                // set first pointer to be -1
+                if (i != 29){
+                    nInode->direct[i +1] = -1;
+                }
+                set_bit((void *)s + s->data_bitmap_addr, k);
+                msync(image + s->data_bitmap_addr * UFS_BLOCK_SIZE, s->data_bitmap_len * UFS_BLOCK_SIZE, MS_SYNC);
+                break;
+            }
+        }
+        dir_ent_t * directory = image + (parentInode->direct[i] *UFS_BLOCK_SIZE); 
+        directory[0].inum = m->inum;
+        strcpy(directory[0].name, m->name);
+        for (int k = 1; k < UFS_BLOCK_SIZE/sizeof(dir_ent_t); k++){
+            directory[k].inum = -1;
+        }
+        msync(directory, UFS_BLOCK_SIZE, MS_SYNC);
+        msync(image + s->inode_region_addr * UFS_BLOCK_SIZE, s->inode_region_len * UFS_BLOCK_SIZE, MS_SYNC);
+    }
+    // if the file is of type directory: 
+    // have to add two entries: .. & .
+    // don't forget to msync everything
+    if (nInode->type == UFS_DIRECTORY){
+        dir_ent_t * directory = image + (nInode->direct[0] *UFS_BLOCK_SIZE);
+        strcpy(directory[0].name, ".");
+        directory[0].inum = m->inum;
+        strcpy(directory[1].name, "..");
+        directory[1].inum = m->pinum;
+        for (int k = 2; k < UFS_BLOCK_SIZE/sizeof(dir_ent_t); k++){
+            directory[k].inum = -1;
+        }
+    }
+    msync(image + (nInode->direct[0] *UFS_BLOCK_SIZE), UFS_BLOCK_SIZE, MS_SYNC); 
 }
 
 void shut_down(){
@@ -84,7 +203,7 @@ int main(int argc, char *argv[]) {
         assert(rc > -1);
 
         image_size = (int) sbuf.st_size;
-        void *image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        image = mmap(NULL, image_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         assert(image != MAP_FAILED);
 
         s = (super_t *) image;
@@ -119,6 +238,10 @@ int main(int argc, char *argv[]) {
         case 2: 
             lookup(&m);
             break;
+        case 6: 
+            printf("create");
+            create(&m);
+            break;
         case 8: 
             shut_down();
             break;
@@ -129,7 +252,7 @@ int main(int argc, char *argv[]) {
             r.inum = m.inum;
             r.rc = m.rc;
             r.pinum = m.pinum;
-            r.name = m.name;
+            strcpy(r.name, m.name);
             m.rc = UDP_Write(sd, &addr, (char *) &r, sizeof(message_t));
 	    printf("server:: reply\n");
 	} 

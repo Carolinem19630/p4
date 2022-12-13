@@ -103,20 +103,19 @@ int MFS_Init(char *hostname, int port) {
 int MFS_Lookup(int pinum, char *name) {
     // network communication to do the lookup to server
     message_t m;
-    struct sockaddr_in addrSnd, addrRcv;
     m.mtype = MFS_LOOKUP;
     m.pinum = pinum; 
-    m.name = name;
-    m.rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
+    strcpy(m.name, name);
+    int rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
     if (m.rc < 0) {
 	    printf("client:: failed to send\n");
 	    exit(1);
     }
 
     printf(" NEW client:: wait for reply...\n");
-    m.rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
+    rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
     printf("client:: got reply [size:%d contents:(%d)\n", m.rc, m.mtype);
-    if (m.rc == -1){
+    if (m.rc == -1 || rc == -1){
         return -1;
     }
     return m.inum;
@@ -131,7 +130,6 @@ int MFS_Lookup(int pinum, char *name) {
 int MFS_Stat(int inum, MFS_Stat_t *m) {
     message_t info;
     //message_t
-    struct sockaddr_in addrSnd, addrRcv;
     info.mtype= MFS_STAT;
     info.inum = inum;
 
@@ -163,7 +161,6 @@ int MFS_Stat(int inum, MFS_Stat_t *m) {
 int MFS_Write(int inum, char *buffer, int offset, int nbytes) {
    
    message_t m;
-   struct sockaddr_in addrSnd, addrRcv;
    if (nbytes > 4096){
     return -1;
    } 
@@ -191,7 +188,34 @@ int MFS_Read(int inum, char *buffer, int offset, int nbytes) {
     return 0;
 }
 
+/*
+* MFS_Creat() makes a file (type == MFS_REGULAR_FILE) or directory (type == MFS_DIRECTORY) 
+* in the parent directory specified by pinum of name name. Returns 0 on success, -1 on failure. 
+* Failure modes: pinum does not exist, or name is too long. If name already exists, return success.
+*/
 int MFS_Creat(int pinum, int type, char *name) {
+    // network communication to do the lookup to server
+    message_t m;
+    m.mtype = MFS_CRET;
+    m.pinum = pinum; 
+    if (strlen(name) > 27){
+        return -1;
+    }
+    strcpy(m.name, name);
+    printf("name %s", m.name);
+    m.type = type; 
+    int rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
+    if (rc < 0) {
+	    printf("client:: failed to send\n");
+	    exit(1);
+    }
+
+    printf(" NEW client:: wait for reply...\n");
+    rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
+    printf("client:: got reply [size:%d contents:(%d), inum(%d)\n", m.rc, m.mtype, m.inum);
+    if (m.rc == -1 || rc == -1){
+        return -1;
+    }
     return 0;
 }
 

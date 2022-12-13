@@ -16,7 +16,7 @@ typedef struct {
     int rc;    // return code
     int pinum;
     int inum;
-    char * name;
+    char name[28];
     // put more here ...
     int type;
     int size;

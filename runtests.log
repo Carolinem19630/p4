@@ -8,10 +8,7 @@ build project using make
 **********************************************************************
 Trying to build project using make
 make
-gcc -Wall -Werror  -c server.c
-gcc -c -fPIC -g -Wall -Werror libmfs.c udp.c
-gcc -shared -Wl,-soname,libmfs.so -o libmfs.so libmfs.o -lc	
-gcc server.o -o server udp.c
+make: Nothing to be done for 'all'.
 
 
 test build PASSED
@@ -31,10 +28,8 @@ total blocks        36
 layout details
   inode bitmap address/len 1 [1]
   data bitmap address/len  2 [1]
-start server
-0
-Starting server on port 7480
-/tmp/tmpBKB6J1/p/server 7480 ./test.img
+Starting server on port 8999
+/tmp/tmpuZc31t/p/server 8999 ./test.img
 inode bitmap address 1 [len 1]
 data bitmap address 2 [len 1]
 
@@ -45,13 +40,13 @@ root dir entries
 0 .
 0 ..
 server:: waiting...
-server:: read message [size:0 contents:(1)]
+server:: read message [size:22041 contents:(1)]
 server:: reply
 server:: waiting...
-server:: read message [size:21905 contents:(8)]
-MFS Init2 localhost 7480
+server:: read message [size:32764 contents:(8)]
+MFS Init2 localhost 8999
  NEW client:: wait for reply...
-client:: got reply [size:40 contents:(1)
+client:: got reply [size:56 contents:(1)
 
 
 test shutdown PASSED
@@ -71,19 +66,82 @@ total blocks        36
 layout details
   inode bitmap address/len 1 [1]
   data bitmap address/len  2 [1]
-start server
-0
-Starting server on port 8423
-/tmp/tmpBKB6J1/p/server 8423 ./test.img
-MFS Init2 localhost 8423
+Starting server on port 7718
+/tmp/tmpuZc31t/p/server 7718 ./test.img
+inode bitmap address 1 [len 1]
+data bitmap address 2 [len 1]
+
+root type:0 root size:64
+direct pointers[0]:4 [1]:-1
+
+root dir entries
+0 .
+0 ..
+server:: waiting...
+server:: read message [size:22041 contents:(1)]
+server:: reply
+server:: waiting...
+server:: read message [size:7718 contents:(6)]
+create012
+inode bitmap
+1
+
+inode bitmap 2
+1
+
+parent Inode 2
+0x7f2b663a4000 0
+server:: reply
+server:: waiting...
+server:: read message [size:0 contents:(2)]
+server:: reply
+server:: waiting...
+server:: read message [size:32764 contents:(8)]
+MFS Init2 localhost 7718
  NEW client:: wait for reply...
-client:: got reply [size:40 contents:(1)
-client:: failed to send
+client:: got reply [size:56 contents:(1)
+name test NEW client:: wait for reply...
+client:: got reply [size:7718 contents:(6), inum(1)
+ NEW client:: wait for reply...
+client:: got reply [size:0 contents:(2)
 
 
-test creat FAILED
+test creat PASSED
  (creat a file and check with lookup)
- Timelimit (10.0s) exceeded
 
-Skipped 24 tests.
+('starting', 'write')
+
+**********************************************************************
+
+Test write
+write then read one block
+
+**********************************************************************
+total blocks        36
+  inodes            32 [size of each: 128]
+  data blocks       32
+layout details
+  inode bitmap address/len 1 [1]
+  data bitmap address/len  2 [1]
+Starting server on port 6081
+/tmp/tmpuZc31t/p/server 6081 ./test.img
+MFS Init2 localhost 6081
+ NEW client:: wait for reply...
+client:: got reply [size:56 contents:(1)
+name test NEW client:: wait for reply...
+client:: got reply [size:6081 contents:(6), inum(2)
+ NEW client:: wait for reply...
+client:: got reply [size:0 contents:(2)
+ NEW client:: wait for reply...
+client:: got reply [size:56 contents:(4)
+('START BLOCK 1\x00\x00\x00\x00\x00\x00\x00', '\x00\x00\x00\x00\x00\x00\x00\x00\x00END BLOCK 1')
+('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00', '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+Failure: Corrupt data returned by read
+
+
+test write FAILED
+ (write then read one block)
+ Corrupt data returned by read
+
+Skipped 23 tests.
 To keep testing after failing a test, use flag '-c' or '--continue'
