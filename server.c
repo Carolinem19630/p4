@@ -68,6 +68,48 @@ void lookup(message_t * m){
 }
 
 /*
+MFS_Read() reads nbytes of data (max size 4096 bytes) specified by the byte offset offset into the buffer 
+from file specified by inum. The routine should work for either a file or directory; directories should 
+return data in the format specified by MFS_DirEnt_t. Success: 0, failure: -1. 
+Failure modes: invalid inum, invalid offset, invalid nbytes.
+*/
+void _read(message_t * m){
+    // check the bitmap to see if inum is valid - else failure
+    if (!get_bit((unsigned int *) (image + (s->inode_bitmap_addr * UFS_BLOCK_SIZE)),  m->inum)){
+        m->rc = -1;
+        return;
+    }
+    // find inode 
+    inode_t * currInode = (void *) inode_table + (m->inum * sizeof(inode_t));
+    // check that the offset is less than the size of the file / directory & check that the offset + nbytes is less than the size
+    if (m->offset + m->nbytes > currInode->size){
+        m->rc = -1;
+        return;
+    }
+    
+    // calculate the start of the reading in -> which block does it live in? - if offset + nbytes > block size -> then which block(s) does the data live in
+    if (m->offset + m->nbytes > UFS_BLOCK_SIZE){
+        // find first block 
+        dir_ent_t * startBlock = image + (currInode->direct[m->offset % UFS_BLOCK_SIZE] * UFS_BLOCK_SIZE);
+        char * tempBuffer = malloc(m->nbytes);
+        startBlock = (dir_ent_t* ) ((char *) startBlock + m->offset);
+        memcpy(tempBuffer, startBlock, UFS_BLOCK_SIZE - m->offset);
+        tempBuffer = (dir_ent_t *)((char*) tempBuffer +(UFS_BLOCK_SIZE - m->offset));
+        
+        // find second block
+        dir_ent_t * endBlock = image + (currInode->direct[(m->offset + m->nbytes) % UFS_BLOCK_SIZE] * UFS_BLOCK_SIZE);
+        memcpy(tempBuffer, (char*) endBlock, m->nbytes - (UFS_BLOCK_SIZE - m->offset));
+    }
+    else {
+        dir_ent_t * startBlock = image + (currInode->direct[m->offset % UFS_BLOCK_SIZE] * UFS_BLOCK_SIZE);
+        char * tempBuffer = malloc(m->nbytes);
+        memcpy(tempBuffer, (char*)startBlock, m->nbytes);
+        m->buffer = malloc(m->nbytes);
+        memcpy(m->buffer, tempBuffer, m->nbytes);
+    } 
+}
+
+/*
 * MFS_Creat() makes a file (type == MFS_REGULAR_FILE) or directory (type == MFS_DIRECTORY) 
 * in the parent directory specified by pinum of name name. Returns 0 on success, -1 on failure. 
 * Failure modes: pinum does not exist, or name is too long. If name already exists, return success.
@@ -194,6 +236,12 @@ void shut_down(){
 int main(int argc, char *argv[]) {
     signal(SIGINT, intHandler);
     int fd = open(argv[2], O_RDWR, 0666);
+    if (fd <= 0){
+        char error_message[30] = "image does not exist\n";
+        if(write(STDERR_FILENO, error_message, strlen(error_message))){
+            exit(1);
+        } 
+    }
     if (fd > 0){
         sd = UDP_Open(atoi(argv[1])); // pass in port number as arg
         assert(sd > -1);
@@ -218,6 +266,7 @@ int main(int argc, char *argv[]) {
 
         root_dir = image + (root_inode->direct[0] * UFS_BLOCK_SIZE);
         printf("\nroot dir entries\n%d %s\n", root_dir[0].inum, root_dir[0].name);
+        printf("%p root_dir -CHECK\n", root_dir);
         printf("%d %s\n", root_dir[1].inum, root_dir[1].name);
 
         // change on-disk format(!)
@@ -238,8 +287,10 @@ int main(int argc, char *argv[]) {
         case 2: 
             lookup(&m);
             break;
+        case 5:
+            _read(&m);
+            break;
         case 6: 
-            printf("create");
             create(&m);
             break;
         case 8: 
@@ -247,13 +298,7 @@ int main(int argc, char *argv[]) {
             break;
     }
 	if (rc > 0) {
-            message_t r; 
-            r.mtype = m.mtype;
-            r.inum = m.inum;
-            r.rc = m.rc;
-            r.pinum = m.pinum;
-            strcpy(r.name, m.name);
-            m.rc = UDP_Write(sd, &addr, (char *) &r, sizeof(message_t));
+        m.rc = UDP_Write(sd, &addr, (char *) &m, sizeof(message_t));
 	    printf("server:: reply\n");
 	} 
     }}

@@ -17,10 +17,12 @@ typedef struct {
     int pinum;
     int inum;
     char name[28];
+    int offset;
+    int nbytes;
     // put more here ...
     int type;
     int size;
-    int buffer;
+    char * buffer;
 } message_t;
 
 #endif // __message_h__

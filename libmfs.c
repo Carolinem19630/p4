@@ -167,7 +167,7 @@ int MFS_Write(int inum, char *buffer, int offset, int nbytes) {
    m.mtype = MFS_WRITE;
    m.inum = inum;
    //TODO - Not sure if this is correct. Double check
-   m.buffer = offset + (sizeof(int)*nbytes);
+   //m.buffer = offset + (sizeof(int)*nbytes);
    m.rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
     if (m.rc < 0) {
 	    printf("client:: failed to send\n");
@@ -180,11 +180,38 @@ int MFS_Write(int inum, char *buffer, int offset, int nbytes) {
     if (m.rc == -1){
         return -1;
     }
-   
     return 0;
 }
 
+/*
+MFS_Read() reads nbytes of data (max size 4096 bytes) specified by the byte offset offset into the buffer 
+from file specified by inum. The routine should work for either a file or directory; directories should 
+return data in the format specified by MFS_DirEnt_t. Success: 0, failure: -1. 
+Failure modes: invalid inum, invalid offset, invalid nbytes.
+*/
 int MFS_Read(int inum, char *buffer, int offset, int nbytes) {
+    // network communication to do the lookup to server
+    if (nbytes > 4096){
+        return -1;
+    }
+    message_t m;
+    m.mtype = MFS_READ;
+    m.inum = inum; 
+    m.offset = offset;
+    m.nbytes = nbytes;
+    int rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
+    if (rc < 0) {
+	    printf("client:: failed to send\n");
+	    exit(1);
+    }
+
+    printf(" NEW client:: wait for reply...\n");
+    rc = UDP_Read(sd, &addrRcv, (char *) &m, sizeof(message_t));
+    printf("client:: got reply [size:%d contents:(%d), inum(%d)\n", m.rc, m.mtype, m.inum);
+    if (m.rc == -1 || rc == -1){
+        return -1;
+    }
+    memcpy(buffer, m.buffer, 1);
     return 0;
 }
 
@@ -202,7 +229,6 @@ int MFS_Creat(int pinum, int type, char *name) {
         return -1;
     }
     strcpy(m.name, name);
-    printf("name %s", m.name);
     m.type = type; 
     int rc = UDP_Write(sd, &addrSnd, (char *) &m, sizeof(message_t));
     if (rc < 0) {
